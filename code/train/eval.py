@@ -2,7 +2,7 @@ import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from env.uav_env import UAVEnv
+from uav_env.uav_env import UAVEnv
 from config.config import ENV_CONFIG, PATHS
 
 def eval_model(model_path, episodes=1):
