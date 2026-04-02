@@ -57,7 +57,10 @@ class UAVEnv(gym.Env):
         vy = np.clip(vy + (ay + wind[1]) * self.dt , -self.max_speed, self.max_speed)
 
         x = x + vx * self.dt
-        y = y+ vy * self.dt
+        y = y + vy * self.dt
+
+        x = np.clip(x, -5, 5)
+        y = np.clip(y, -5, 5)
 
         self.state = np.array([x,y,vx,vy], dtype=np.float32)
 
@@ -89,7 +92,12 @@ class UAVEnv(gym.Env):
         x,y,_,_ = self.state
         dist = np.linalg.norm(self.goal - np.array([x,y]))
 
-        reward = -dist
+        reward = -dist * 0.05
+
+        reward -= 0.01
+
+        if dist < 0.2:
+            reward += 10
 
         if self.obstacle:
             for obstacle in self.obstacles:
