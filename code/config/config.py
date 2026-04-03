@@ -4,7 +4,11 @@ ENV_CONFIG = {
     "max_accel": 0.5,
     "wind": True,
     "obstacle": True,
-    "goal": [4.0, 4.0],
+    "map_size": 5.0,
+    "num_obstacles": [2, 5],
+    "obstacle_speed_range": [0.1, 0.4],
+    "obstacle_radius": 0.3,
+    "wind_std": 0.1
 }
 
 PPO_CONFIG = {

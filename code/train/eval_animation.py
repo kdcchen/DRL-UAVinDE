@@ -20,8 +20,9 @@ def animate_epi(model_path, max_epi=300):
     done = False
 
     fig,ax = plt.subplots(figsize=(6,6))
-    ax.set_xlim(-5,5)
-    ax.set_ylim(-5,5)
+    map_size = env.envs[0].map_size
+    ax.set_xlim(-map_size, map_size)
+    ax.set_ylim(-map_size, map_size)
     ax.grid(True)
 
     # UAV
@@ -31,8 +32,9 @@ def animate_epi(model_path, max_epi=300):
     traj_x, traj_y = [], []
     traj_line, = ax.plot([],[],'b-',linewidth=1)
 
-    goal = ENV_CONFIG['goal']
-    ax.scatter(goal[0], goal[1], c='green', s=80, label='Goal')
+    goal_x = obs[0][4]
+    goal_y = obs[0][5]
+    goal_point = ax.scatter(goal_x, goal_y, c='green', s=80, label='Goal')
 
     obstacles_scatter = ax.scatter([],[],c='red', s=80, label='Obstacles')
 

@@ -7,7 +7,8 @@ class UAVEnv(gym.Env):
 
     def __init__(self, config):
         super().__init__()
-
+        self.config = config
+        self.map_size = config["map_size"]
         self.dt = config["dt"]
         self.max_speed = config["max_speed"]
         self.max_accel = config["max_accel"]
@@ -20,16 +21,14 @@ class UAVEnv(gym.Env):
 
         # [x,y,vx,vy,gx,gy]
 
-        high = np.array([10,10,2,2,10,10],dtype=np.float32)
+        high = np.array([self.map_size,self.map_size,self.max_speed,self.max_speed,self.map_size,self.map_size],dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
-        self.goal = np.array(config["goal"],dtype=np.float32)
+        self.goal = None
 
         self.state = None
 
         self.obstacles = []
-
-        self.prev_dist = None
 
         self.render_mode = None
 
@@ -42,19 +41,22 @@ class UAVEnv(gym.Env):
 
         self.state = np.array([x,y,vx,vy,], dtype=np.float32)
 
+        # random goal
+        gx = self.np_random.uniform(-self.map_size + 1, self.map_size - 1)
+        gy = self.np_random.uniform(-self.map_size + 1, self.map_size - 1)
+        self.goal = np.array([gx, gy], dtype=np.float32)
+
         # reset obstacles if it is true
         if self.obstacle:
             self._reset_obstacles()
 
         obs = np.concatenate([self.state, self.goal])
 
-        self.prev_dist = np.linalg.norm(self.goal - np.array([x, y]))
-
         return obs, {}
 
     def step(self, action):
         self.step_count += 1
-        truncated = self.step_count > 300
+        truncated = self.step_count > 500
         x,y,vx,vy = self.state
 
         ax,ay = np.clip(action,-self.max_accel,self.max_accel)
@@ -67,8 +69,8 @@ class UAVEnv(gym.Env):
         x = x + vx * self.dt
         y = y + vy * self.dt
 
-        x = np.clip(x, -5, 5)
-        y = np.clip(y, -5, 5)
+        x = np.clip(x, -self.map_size, self.map_size)
+        y = np.clip(y, -self.map_size, self.map_size)
 
         self.state = np.array([x,y,vx,vy], dtype=np.float32)
 
@@ -81,7 +83,6 @@ class UAVEnv(gym.Env):
         terminated = dist_to_goal < 0.3
         info = {}
         if terminated:
-            reward += 20
             obs = np.concatenate([self.state, self.goal])
             return obs, reward, terminated, truncated, info
 
@@ -91,16 +92,18 @@ class UAVEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _compute_wind(self):
-        return 0.1 * self.np_random.normal(loc=0.0, scale=1.0, size=2)
+        return self.config["wind_std"] * self.np_random.normal(0, 1, size=2)
 
     def _reset_obstacles(self):
         self.obstacles = []
+        low, high = self.config["num_obstacles"]
+        num_obs = self.np_random.integers(low, high + 1)
 
-        num_obs = self.np_random.integers(2, 5)
-
+        speed_low, speed_high = self.config["obstacle_speed_range"]
+        radius = self.config["obstacle_radius"]
         for _ in range(num_obs):
             # random position
-            pos = self.np_random.uniform(low=-3.0, high=3.0, size=2)
+            pos = self.np_random.uniform(-self.map_size+1.0, self.map_size-1.0, size=2)
 
             # 50% static，50% dynamic
             if self.np_random.random() < 0.5:
@@ -109,7 +112,7 @@ class UAVEnv(gym.Env):
             else:
                 # random direction + random speed
                 angle = self.np_random.uniform(0, 2 * np.pi)
-                speed = self.np_random.uniform(0.1, 0.4)
+                speed = self.np_random.uniform(speed_low, speed_high)
                 vel = np.array([np.cos(angle) * speed, np.sin(angle) * speed])
                 obs_type = "dynamic"
 
@@ -128,20 +131,29 @@ class UAVEnv(gym.Env):
         x,y,vx,vy = self.state
         dist = np.linalg.norm(self.goal - np.array([x,y]))
 
-        reward = self.prev_dist - dist
+        reward = - dist
 
-        if abs(x) > 4.8 or abs(y) > 4.8:
-            reward -= 1.0
+        radius = self.config["obstacle_radius"]
+        #penalty of speed
+        # speed = np.linalg.norm([vx,vy])
+        # reward -= 0.005 * speed
+
+        if abs(x) > self.map_size-0.2 or abs(y) > self.map_size-0.2:
+            reward -= 5.0
 
         if dist < 0.3:
-            reward += 20
+            reward += 100
+
+        # punishment of collapse as well as too close
 
         if self.obstacle:
             for obstacle in self.obstacles:
-                if np.linalg.norm(obstacle["pos"] - np.array([x,y])) < 0.3:
+                d = np.linalg.norm(obstacle["pos"] - np.array([x,y]))
+                if d < 1.0:
+                    reward -= (1.0 - d) * 0.5
+                if  d < radius:
                     reward -= 5.0
 
-        self.prev_dist = dist
         return reward
 
     def render(self):
