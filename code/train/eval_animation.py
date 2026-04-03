@@ -42,12 +42,23 @@ def animate_epi(model_path, max_epi=300):
         nonlocal obs,done
 
         if done:
+            animation.event_source.stop()
             return traj_line, uav_point, obstacles_scatter
 
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
-        done = done[0]
+        next_obs, reward, dones, info = env.step(action)
+        done = dones[0]
 
+        if done:
+            x, y = obs[0][0], obs[0][1]
+            traj_x.append(x)
+            traj_y.append(y)
+            traj_line.set_data(traj_x, traj_y)
+            uav_point.set_data([x], [y])
+            animation.event_source.stop()
+            return traj_line, uav_point, obstacles_scatter
+
+        obs = next_obs
         x, y = obs[0][0], obs[0][1]
         traj_x.append(x)
         traj_y.append(y)
