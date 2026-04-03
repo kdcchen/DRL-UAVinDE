@@ -82,11 +82,35 @@ class UAVEnv(gym.Env):
         return 0.1 * self.np_random.normal(loc=0.0, scale=1.0, size=2)
 
     def _reset_obstacles(self):
-        self.obstacles = [{"pos":np.array([1.0,0]),"vel":np.array([0,0.5])}]
+        self.obstacles = []
+
+        num_obs = self.np_random.integers(2, 4)
+
+        for _ in range(num_obs):
+            # random position
+            pos = self.np_random.uniform(low=-3.0, high=3.0, size=2)
+
+            # 50% static，50% dynamic
+            if self.np_random.random() < 0.5:
+                vel = np.zeros(2)
+                obs_type = "static"
+            else:
+                # random direction + random speed
+                angle = self.np_random.uniform(0, 2 * np.pi)
+                speed = self.np_random.uniform(0.1, 0.4)
+                vel = np.array([np.cos(angle) * speed, np.sin(angle) * speed])
+                obs_type = "dynamic"
+
+            self.obstacles.append({
+                "type": obs_type,
+                "pos": pos,
+                "vel": vel
+            })
 
     def _update_obstacles(self):
         for obstacle in self.obstacles:
-            obstacle["pos"] += obstacle["vel"] * self.dt
+            if obstacle["type"] == "dynamic":
+                obstacle["pos"] += obstacle["vel"] * self.dt
 
     def _compute_reward(self):
         x,y,_,_ = self.state
