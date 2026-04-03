@@ -2,8 +2,8 @@ ENV_CONFIG = {
     "dt": 0.1,
     "max_speed": 1.0,
     "max_accel": 0.5,
-    "wind": False,
-    "obstacle": False,
+    "wind": True,
+    "obstacle": True,
     "goal": [4.0, 4.0],
 }
 
