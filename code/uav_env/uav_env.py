@@ -1,9 +1,10 @@
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
+from gymnasium import spaces
+
 
 class UAVEnv(gym.Env):
-    metadata = {'render_modes': ['human']}
+    metadata = {"render_modes": ["human"]}
 
     def __init__(self, config):
         super().__init__()
@@ -17,11 +18,23 @@ class UAVEnv(gym.Env):
         self.wind = config["wind"]
         self.obstacle = config["obstacle"]
 
-        self.action_space = spaces.Box(low=-self.max_accel, high=self.max_accel,shape=(2,),dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=-self.max_accel, high=self.max_accel, shape=(2,), dtype=np.float32
+        )
 
         # [x,y,vx,vy,gx,gy]
 
-        high = np.array([self.map_size,self.map_size,self.max_speed,self.max_speed,self.map_size,self.map_size],dtype=np.float32)
+        high = np.array(
+            [
+                self.map_size,
+                self.map_size,
+                self.max_speed,
+                self.max_speed,
+                self.map_size,
+                self.map_size,
+            ],
+            dtype=np.float32,
+        )
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
         self.goal = None
@@ -32,14 +45,22 @@ class UAVEnv(gym.Env):
 
         self.render_mode = None
 
-    def reset(self, seed = None, options = None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.step_count = 0
         # Random initial
-        x,y = self.np_random.uniform(low=-1.0, high=1.0, size=(2,))
-        vx,vy = 0.0,0.0
+        x, y = self.np_random.uniform(low=-1.0, high=1.0, size=(2,))
+        vx, vy = 0.0, 0.0
 
-        self.state = np.array([x,y,vx,vy,], dtype=np.float32)
+        self.state = np.array(
+            [
+                x,
+                y,
+                vx,
+                vy,
+            ],
+            dtype=np.float32,
+        )
 
         # random goal
         gx = self.np_random.uniform(-self.map_size + 1, self.map_size - 1)
@@ -57,14 +78,14 @@ class UAVEnv(gym.Env):
     def step(self, action):
         self.step_count += 1
         truncated = self.step_count > 500
-        x,y,vx,vy = self.state
+        x, y, vx, vy = self.state
 
-        ax,ay = np.clip(action,-self.max_accel,self.max_accel)
+        ax, ay = np.clip(action, -self.max_accel, self.max_accel)
 
         wind = self._compute_wind() if self.wind else np.zeros(2)
 
-        vx = np.clip(vx + (ax + wind[0]) * self.dt , -self.max_speed, self.max_speed)
-        vy = np.clip(vy + (ay + wind[1]) * self.dt , -self.max_speed, self.max_speed)
+        vx = np.clip(vx + (ax + wind[0]) * self.dt, -self.max_speed, self.max_speed)
+        vy = np.clip(vy + (ay + wind[1]) * self.dt, -self.max_speed, self.max_speed)
 
         x = x + vx * self.dt
         y = y + vy * self.dt
@@ -72,14 +93,14 @@ class UAVEnv(gym.Env):
         x = np.clip(x, -self.map_size, self.map_size)
         y = np.clip(y, -self.map_size, self.map_size)
 
-        self.state = np.array([x,y,vx,vy], dtype=np.float32)
+        self.state = np.array([x, y, vx, vy], dtype=np.float32)
 
         if self.obstacle:
             self._update_obstacles()
 
         reward = self._compute_reward()
 
-        dist_to_goal = np.linalg.norm(self.goal - np.array([x,y]))
+        dist_to_goal = np.linalg.norm(self.goal - np.array([x, y]))
         terminated = dist_to_goal < 0.3
         info = {}
         if terminated:
@@ -87,7 +108,6 @@ class UAVEnv(gym.Env):
             return obs, reward, terminated, truncated, info
 
         obs = np.concatenate([self.state, self.goal])
-
 
         return obs, reward, terminated, truncated, info
 
@@ -103,7 +123,9 @@ class UAVEnv(gym.Env):
         radius = self.config["obstacle_radius"]
         for _ in range(num_obs):
             # random position
-            pos = self.np_random.uniform(-self.map_size+1.0, self.map_size-1.0, size=2)
+            pos = self.np_random.uniform(
+                -self.map_size + 1.0, self.map_size - 1.0, size=2
+            )
 
             # 50% static，50% dynamic
             if self.np_random.random() < 0.5:
@@ -116,11 +138,7 @@ class UAVEnv(gym.Env):
                 vel = np.array([np.cos(angle) * speed, np.sin(angle) * speed])
                 obs_type = "dynamic"
 
-            self.obstacles.append({
-                "type": obs_type,
-                "pos": pos,
-                "vel": vel
-            })
+            self.obstacles.append({"type": obs_type, "pos": pos, "vel": vel})
 
     def _update_obstacles(self):
         for obstacle in self.obstacles:
@@ -128,17 +146,17 @@ class UAVEnv(gym.Env):
                 obstacle["pos"] += obstacle["vel"] * self.dt
 
     def _compute_reward(self):
-        x,y,vx,vy = self.state
-        dist = np.linalg.norm(self.goal - np.array([x,y]))
+        x, y, vx, vy = self.state
+        dist = np.linalg.norm(self.goal - np.array([x, y]))
 
-        reward = - dist
+        reward = -dist
 
         radius = self.config["obstacle_radius"]
-        #penalty of speed
+        # penalty of speed
         # speed = np.linalg.norm([vx,vy])
         # reward -= 0.005 * speed
 
-        if abs(x) > self.map_size-0.2 or abs(y) > self.map_size-0.2:
+        if abs(x) > self.map_size - 0.2 or abs(y) > self.map_size - 0.2:
             reward -= 5.0
 
         if dist < 0.3:
@@ -148,10 +166,10 @@ class UAVEnv(gym.Env):
 
         if self.obstacle:
             for obstacle in self.obstacles:
-                d = np.linalg.norm(obstacle["pos"] - np.array([x,y]))
+                d = np.linalg.norm(obstacle["pos"] - np.array([x, y]))
                 if d < 1.0:
                     reward -= (1.0 - d) * 0.5
-                if  d < radius:
+                if d < radius:
                     reward -= 5.0
 
         return reward

@@ -1,18 +1,19 @@
-import sys,os
+import os
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import gymnasium as gym
+from config.config import ENV_CONFIG, PATHS, PPO_CONFIG
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 from uav_env.uav_env import UAVEnv
-from config.config import ENV_CONFIG,PPO_CONFIG,PATHS
 
+env = DummyVecEnv([lambda: UAVEnv(ENV_CONFIG)])
 
-env = DummyVecEnv([lambda:UAVEnv(ENV_CONFIG)])
-
-model = PPO("MlpPolicy",
+model = PPO(
+    "MlpPolicy",
     env,
     learning_rate=PPO_CONFIG["learning_rate"],
     n_steps=PPO_CONFIG["n_steps"],
@@ -22,7 +23,7 @@ model = PPO("MlpPolicy",
     clip_range=PPO_CONFIG["clip_range"],
     ent_coef=PPO_CONFIG["ent_coef"],
     device=PPO_CONFIG["device"],
-    verbose=1
+    verbose=1,
 )
 
 checkpoint_callback = CheckpointCallback(
@@ -31,9 +32,7 @@ checkpoint_callback = CheckpointCallback(
     name_prefix="PPO_UAV",
 )
 
-model.learn(total_timesteps=PPO_CONFIG["total_timesteps"],
-            callback=checkpoint_callback
-)
+model.learn(total_timesteps=PPO_CONFIG["total_timesteps"], callback=checkpoint_callback)
 
 model.save(PATHS["final_model"])
 
