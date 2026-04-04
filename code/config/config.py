@@ -1,9 +1,9 @@
 ENV_CONFIG = {
     "dt": 0.1,
-    "max_speed": 1.0,
+    "max_speed": 0.5,
     "max_accel": 0.5,
-    "wind": True,
-    "obstacle": True,
+    "wind": False,
+    "obstacle": False,
     "dynamicObstacle_rate": 0.0,
     "map_size": 5.0,
     "num_obstacles": [6, 8],
@@ -19,9 +19,9 @@ PPO_CONFIG = {
     "gamma": 0.99,
     "gae_lambda": 0.95,
     "clip_range": 0.2,
-    "ent_coef": 0.0,
+    "ent_coef": 0.1,
     "total_timesteps": 100_000,
-    "save_freq": 5000,
+    "save_freq": 50000,
     "device": "cuda",  # or "cpu"
 }
 

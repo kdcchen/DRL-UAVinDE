@@ -35,8 +35,8 @@ def animate_epi(model_path, max_epi=300):
     traj_x, traj_y = [], []
     (traj_line,) = ax.plot([], [], "b-", linewidth=1)
 
-    goal_x = obs[0][4]
-    goal_y = obs[0][5]
+    true_goal = env.envs[0].goal
+    goal_x, goal_y = true_goal[0], true_goal[1]
     goal_point = ax.scatter(goal_x, goal_y, c="green", s=80, label="Goal")
 
     obstacles_scatter = ax.scatter([], [], c="red", s=80, label="Obstacles")
@@ -50,12 +50,13 @@ def animate_epi(model_path, max_epi=300):
             animation.event_source.stop()
             return traj_line, uav_point, obstacles_scatter
 
-        action, _ = model.predict(obs, deterministic=True)
+        action, _ = model.predict(obs, deterministic=False)
+        prev_state = env.envs[0].state.copy()
         next_obs, reward, dones, info = env.step(action)
         done = dones[0]
 
         if done:
-            x, y = obs[0][0], obs[0][1]
+            x, y = prev_state[0], prev_state[1]
             traj_x.append(x)
             traj_y.append(y)
             traj_line.set_data(traj_x, traj_y)
@@ -63,17 +64,15 @@ def animate_epi(model_path, max_epi=300):
             animation.event_source.stop()
             return traj_line, uav_point, obstacles_scatter
 
-        obs = next_obs
-        x, y = obs[0][0], obs[0][1]
+        true_state = env.envs[0].state
+        x, y = true_state[0], true_state[1]
         traj_x.append(x)
         traj_y.append(y)
         traj_line.set_data(traj_x, traj_y)
         uav_point.set_data([x], [y])
 
         obstacles = env.envs[0].obstacles
-        obstacle_positions = np.array([obstacle["pos"] for obstacle in obstacles])
-        print("obstacles =", obstacles)
-        print("obstacle_positions =", obstacle_positions)
+        obstacle_positions = np.array([obstacle["pos"] for obstacle in obstacles]).reshape(-1, 2)
         obstacles_scatter.set_offsets(obstacle_positions)
 
         return traj_line, uav_point, obstacles_scatter
