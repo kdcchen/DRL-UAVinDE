@@ -27,7 +27,7 @@ Static Evaluation (Trajectory Plot)
 
 To visualize a single episode trajectory:
 
-    python code/train/eval.py
+    python code/train/eval_animation.py
 
 This script plots:
 
