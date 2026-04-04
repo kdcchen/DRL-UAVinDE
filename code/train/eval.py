@@ -26,11 +26,16 @@ def eval_model(model_path, episodes=1):
             obs, reward, done, info = env.step(action)
             done = done[0]
 
-            x, y = obs[0][0], obs[0][1]
+            if done:
+                terminal_obs = info[0]["terminal_observation"]
+                x, y = terminal_obs[0], terminal_obs[1]
+            else:
+                x, y = obs[0][0], obs[0][1]
+
             trajectory.append((x, y))
 
         trajectory = np.array(trajectory)
-        np.save(f"trajectory_epi{epi}.npy", trajectory)
+        np.save(f"models/trajectory_epi{epi}.npy", trajectory)
         print(f"Episode {epi} done")
 
     env.close()
