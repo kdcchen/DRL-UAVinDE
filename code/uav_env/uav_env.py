@@ -49,7 +49,7 @@ class UAVEnv(gym.Env):
         super().reset(seed=seed)
         self.step_count = 0
         # Random initial
-        x, y = self.np_random.uniform(low=-1.0, high=1.0, size=(2,))
+        x, y = self.np_random.uniform(low=-4.5, high=-3.5, size=(2,))
         vx, vy = 0.0, 0.0
 
         self.state = np.array(
@@ -127,8 +127,7 @@ class UAVEnv(gym.Env):
                 -self.map_size + 1.0, self.map_size - 1.0, size=2
             )
 
-            # 50% static，50% dynamic
-            if self.np_random.random() < 0.5:
+            if self.np_random.random() < 1 - self.config["dynamicObstacle_rate"]:
                 vel = np.zeros(2)
                 obs_type = "static"
             else:
