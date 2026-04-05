@@ -10,6 +10,7 @@ ENV_CONFIG = {
     "num_obstacles": [6, 8],
     "obstacle_speed_range": [0.1, 0.4],
     "obstacle_radius": 0.3,
+    "safety_radius": 1.0,
     "wind_std": 0.1,
 }
 
@@ -21,7 +22,7 @@ PPO_CONFIG = {
     "gae_lambda": 0.95,
     "clip_range": 0.2,
     "ent_coef": 0.0,
-    "total_timesteps": 100_000,
+    "total_timesteps": 200_000,
     "save_freq": 5000,
     "device": "cuda",  # or "cpu"
 }

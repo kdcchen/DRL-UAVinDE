@@ -17,6 +17,7 @@ class UAVEnv(gym.Env):
         self.K = config["obstacle_k"]
         self.wind = config["wind"]
         self.obstacle = config["obstacle"]
+        self.safety_radius = config["safety_radius"]
 
         self.action_space = spaces.Box(
             low=-self.max_accel, high=self.max_accel, shape=(2,), dtype=np.float32
@@ -73,7 +74,7 @@ class UAVEnv(gym.Env):
         while True:
             gx = self.np_random.uniform(-self.map_size + 1, self.map_size - 1)
             gy = self.np_random.uniform(-self.map_size + 1, self.map_size - 1)
-            if np.linalg.norm(np.array([gx, gy]) - np.array([x, y])) > 1.0:
+            if np.linalg.norm(np.array([gx, gy]) - np.array([x, y])) > self.map_size:
                 break
         self.goal = np.array([gx, gy], dtype=np.float32)
 
@@ -117,7 +118,7 @@ class UAVEnv(gym.Env):
         if dist_to_goal < 0.3:
             terminated = True
             success = True
-            reward -= 0.2 * self.step_count
+            reward -= 0.1 * self.step_count
 
         if abs(x) > self.map_size-0.1 or abs(y) > self.map_size - 0.1:
             terminated = True
@@ -145,11 +146,37 @@ class UAVEnv(gym.Env):
 
         speed_low, speed_high = self.config["obstacle_speed_range"]
         radius = self.config["obstacle_radius"]
+
+        # Safety Radius
+
+        safe_dist_start = self.safety_radius
+        safe_dist_goal = self.safety_radius
+        min_dist_between_obs = 2 * radius + 0.3
+
+        start_pos = np.array([self.state[0], self.state[1]])
+        goal_pos = self.goal
+
         for _ in range(num_obs):
-            # random position
-            pos = self.np_random.uniform(
-                -self.map_size + 1.0, self.map_size - 1.0, size=2
-            )
+            while True:
+                # random position
+                pos = self.np_random.uniform(
+                    -self.map_size + 1.0, self.map_size - 1.0, size=2
+                )
+                # Too close to UAV → reset
+                if np.linalg.norm(pos - start_pos) < safe_dist_start:
+                   continue
+
+                    # Too close to goal → reset
+                if np.linalg.norm(pos - goal_pos) < safe_dist_goal:
+                    continue
+                too_close = False
+                for obs in self.obstacles:
+                    if np.linalg.norm(pos - obs["pos"]) < min_dist_between_obs:
+                        too_close = True
+                        break
+                if too_close:
+                    continue
+                break
 
             if self.np_random.random() < 1 - self.config["dynamicObstacle_rate"]:
                 vel = np.zeros(2)
@@ -233,16 +260,23 @@ class UAVEnv(gym.Env):
 
             cos_theta = np.dot(goal_dir, vel_dir)
 
+            if dist > 1.0:
+                w = 2.0
+            elif dist > 0.5:
+                w = 3.0
+            else:
+                w = 5.0
+
             if delta_n > 0:
-                reward += 3.0 * delta_n
+                reward += w * delta_n
                 reward += 0.1 * cos_theta
             else:
-                reward += 1.0 * delta_n
+                reward += w * delta_n
 
         self.prev_dist = dist
 
         if dist < 0.3:
-            reward += 100
+            reward += 60
 
         return reward
 
