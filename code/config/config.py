@@ -4,6 +4,7 @@ ENV_CONFIG = {
     "max_accel": 0.5,
     "wind": True,
     "obstacle": True,
+    "obstacle_k": 3,
     "dynamicObstacle_rate": 0.0,
     "map_size": 5.0,
     "num_obstacles": [6, 8],

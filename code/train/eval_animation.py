@@ -21,8 +21,15 @@ def animate_epi(model_path, max_epi=300):
 
     obs = env.reset()
     done = False
+    episode_reward = 0.0
 
     fig, ax = plt.subplots(figsize=(6, 6))
+    score_text = ax.text(
+        0.02, 0.95, "Score: 0.0",
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment="top"
+    )
 
     fig.subplots_adjust(bottom=0.2)
 
@@ -38,8 +45,9 @@ def animate_epi(model_path, max_epi=300):
     traj_x, traj_y = [], []
     (traj_line,) = ax.plot([], [], "b-", linewidth=1)
 
-    goal_x = obs[0][4]
-    goal_y = obs[0][5]
+    goal_x = env.envs[0].goal[0]
+    goal_y = env.envs[0].goal[1]
+
     goal_point = ax.scatter(goal_x, goal_y, c="green", s=80, label="Goal")
 
     obstacles_scatter = ax.scatter([], [], c="red", s=80, label="Obstacles")
@@ -47,18 +55,23 @@ def animate_epi(model_path, max_epi=300):
     ax.legend()
 
     def update_animation(frame):
-        nonlocal obs, done
+        nonlocal obs, done, episode_reward
 
         if done:
             animation.event_source.stop()
             return traj_line, uav_point, obstacles_scatter, goal_point
 
         action, _ = model.predict(obs, deterministic=True)
+        prev_state = env.envs[0].state.copy()
         next_obs, reward, dones, info = env.step(action)
+        episode_reward += reward[0]  # DummyVecEnv 返回的是数组
+        score_text.set_text(f"Score: {episode_reward:.2f}")
         done = dones[0]
 
+        obs = next_obs
+
         if done:
-            x, y = obs[0][0], obs[0][1]
+            x, y = prev_state[0], prev_state[1]
             traj_x.append(x)
             traj_y.append(y)
             traj_line.set_data(traj_x, traj_y)
@@ -66,8 +79,8 @@ def animate_epi(model_path, max_epi=300):
             animation.event_source.stop()
             return traj_line, uav_point, obstacles_scatter, goal_point
 
-        obs = next_obs
-        x, y = obs[0][0], obs[0][1]
+        true_state = env.envs[0].state
+        x, y = true_state[0], true_state[1]
         traj_x.append(x)
         traj_y.append(y)
         traj_line.set_data(traj_x, traj_y)
@@ -92,22 +105,25 @@ def animate_epi(model_path, max_epi=300):
     btn_restart = Button(ax_button, "Restart")
 
     def restart_episode(event):
-        nonlocal obs, done, traj_x, traj_y
+        nonlocal obs, done, traj_x, traj_y, episode_reward
 
         # 1. 重新生成环境，获取全新的初始观测值
         obs = env.reset()
         done = False
         traj_x, traj_y = [], []
 
+        episode_reward = 0.0  #  重置分数
+        score_text.set_text("Score: 0.0")
+
         # 2. 清除图表上旧的轨迹线
         traj_line.set_data([], [])
 
         # 3. 更新无人机初始位置
-        x, y = obs[0][0], obs[0][1]
+        x, y = env.envs[0].state[0], env.envs[0].state[1]
         uav_point.set_data([x], [y])
 
         # 4. 更新新的随机目标点位置
-        new_goal_x, new_goal_y = obs[0][4], obs[0][5]
+        new_goal_x, new_goal_y = env.envs[0].goal
         goal_point.set_offsets(np.array([[new_goal_x, new_goal_y]]))
 
         # 5. 更新新的随机障碍物位置
@@ -133,4 +149,4 @@ def animate_epi(model_path, max_epi=300):
 
 if __name__ == "__main__":
     # animate_epi(PATHS["final_model"])
-    animate_epi("./models/PPO_UAV_480000_steps")
+    animate_epi("./models/ppo_uav_final.zip")
