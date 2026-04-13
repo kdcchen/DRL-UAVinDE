@@ -36,7 +36,7 @@ class UAVEnv(gym.Env):
             ],
             dtype=np.float32,
         )
-        obs_dim = 7 + (2 * self.K if self.obstacle else 0)
+        obs_dim = 7 + 2 * self.K
         self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
 
 
@@ -87,7 +87,7 @@ class UAVEnv(gym.Env):
 
     def step(self, action):
         self.step_count += 1
-        truncated = self.step_count > 500
+        truncated = self.step_count > 300
         x, y, vx, vy = self.state
 
         ax, ay = np.clip(action, -self.max_accel, self.max_accel)
@@ -114,7 +114,6 @@ class UAVEnv(gym.Env):
         success = False
 
         dist_to_goal = np.linalg.norm(self.goal - np.array([x, y]))
-        info = {}
         if dist_to_goal < 0.3:
             terminated = True
             success = True
@@ -133,6 +132,8 @@ class UAVEnv(gym.Env):
         if terminated and not success:
             reward -= 50
         self.episode_reward += reward
+
+        info = {"success": success, "dist_to_goal": dist_to_goal}
 
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -220,33 +221,36 @@ class UAVEnv(gym.Env):
         cos_theta = np.dot(goal_dir, vel_dir)
         obs.append(cos_theta)
 
+        d_list = []
         if self.obstacle:
             d_list = [np.linalg.norm(obs_i["pos"] - np.array([x, y])) for obs_i in self.obstacles]
             sorted_idx = np.argsort(d_list)
-            for i in range(self.K):
-                if i < len(sorted_idx):
-                    obs_i = self.obstacles[sorted_idx[i]]
-                    ox, oy = obs_i["pos"]
-                    obs.append((ox - x) / self.map_size)
-                    obs.append((oy - y) / self.map_size)
-                else:
-                    obs.append(2.0)
-                    obs.append(2.0)
+        else:
+            sorted_idx = []
+
+        for i in range(self.K):
+            if self.obstacle and i < len(sorted_idx):
+                obs_i = self.obstacles[sorted_idx[i]]
+                ox, oy = obs_i["pos"]
+                obs.append((ox - x) / self.map_size)
+                obs.append((oy - y) / self.map_size)
+            else:
+                obs.append(2.0)
+                obs.append(2.0)
 
         return np.array(obs, dtype=np.float32)
 
     def _compute_reward(self):
         x, y, vx, vy = self.state
-        dist = np.linalg.norm(self.goal - np.array([x, y]))
-        dist_n = dist / (2 * np.sqrt(2) * self.map_size)
-        dist_n = np.clip(dist_n, 0.0, 1.0)
+        pos = np.array([x, y])
+        dist = np.linalg.norm(self.goal - pos)
 
         reward = -0.1
 
+        reward += (self.prev_dist - dist)
+
         # reward of progress
         if hasattr(self, "prev_dist"):
-            delta = self.prev_dist - dist
-            delta_n = delta / self.map_size
 
             goal_vec = np.array([self.goal[0] - x, self.goal[1] - y])
             goal_dir = goal_vec / (np.linalg.norm(goal_vec) + 1e-6)
@@ -259,24 +263,25 @@ class UAVEnv(gym.Env):
                 vel_dir = vel / vel_norm
 
             cos_theta = np.dot(goal_dir, vel_dir)
-
-            if dist > 1.0:
-                w = 2.0
-            elif dist > 0.5:
-                w = 3.0
-            else:
-                w = 5.0
-
-            if delta_n > 0:
-                reward += w * delta_n
-                reward += 0.1 * cos_theta
-            else:
-                reward += w * delta_n
+            reward += 0.1 * cos_theta
 
         self.prev_dist = dist
 
+        if self.obstacle:
+            for obs in self.obstacles:
+                d = np.linalg.norm(obs["pos"] - pos)
+                safe_r = self.config["obstacle_radius"] + 0.2
+
+                if d < safe_r:
+                    reward -= 20  # 撞上
+                elif d < safe_r + 0.8:
+                    reward -= 1.0 * (safe_r + 0.8 - d)
+
+        if dist < 1.0:
+            reward += 1.0 * (1.0 - dist)
+
         if dist < 0.3:
-            reward += 60
+            reward += 50
 
         return reward
 

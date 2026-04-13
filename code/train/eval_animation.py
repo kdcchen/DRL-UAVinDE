@@ -149,4 +149,4 @@ def animate_epi(model_path, max_epi=300):
 
 if __name__ == "__main__":
     # animate_epi(PATHS["final_model"])
-    animate_epi("./models/ppo_uav_final.zip")
+    animate_epi("./models/stage4_final.zip")
