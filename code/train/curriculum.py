@@ -92,6 +92,7 @@ if __name__ == "__main__":
                 ent_coef=PPO_CONFIG["ent_coef"],
                 device=PPO_CONFIG["device"],
                 verbose=1,
+                policy_kwargs=dict(net_arch=dict(pi=[256, 256], vf=[256, 256])),
             )
         else:
             model.set_env(env)

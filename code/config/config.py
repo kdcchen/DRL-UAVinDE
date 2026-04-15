@@ -1,7 +1,7 @@
 ENV_CONFIG = {
     "dt": 0.1,
     "max_speed": 1.0,
-    "max_accel": 0.5,
+    "max_accel": 1.0,
     "wind": True,
     "obstacle": True,
     "obstacle_k": 3,
@@ -17,8 +17,8 @@ ENV_CONFIG = {
 PPO_CONFIG = {
     "policy": "MlpPolicy",
     "learning_rate": 3e-4,
-    "n_steps": 1024,
-    "batch_size": 2048,
+    "n_steps": 2048,
+    "batch_size": 512,
     "gamma": 0.99,
     "gae_lambda": 0.95,
     "clip_range": 0.2,

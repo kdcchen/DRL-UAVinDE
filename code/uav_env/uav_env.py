@@ -37,8 +37,9 @@ class UAVEnv(gym.Env):
             dtype=np.float32,
         )
         obs_dim = 7 + 2 * self.K
-        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
-
+        self.observation_space = spaces.Box(
+            low=-1.0, high=1.0, shape=(obs_dim,), dtype=np.float32
+        )
 
         self.goal = None
 
@@ -54,9 +55,7 @@ class UAVEnv(gym.Env):
         self.episode_reward = 0.0
         # Random initial
         x, y = self.np_random.uniform(
-            low=-self.map_size + 1.0,
-            high=self.map_size - 1.0,
-            size=(2,)
+            low=-self.map_size + 1.0, high=self.map_size - 1.0, size=(2,)
         )
         vx, vy = 0.0, 0.0
 
@@ -119,7 +118,7 @@ class UAVEnv(gym.Env):
             success = True
             reward -= 0.1 * self.step_count
 
-        if abs(x) > self.map_size-0.1 or abs(y) > self.map_size - 0.1:
+        if abs(x) > self.map_size - 0.1 or abs(y) > self.map_size - 0.1:
             terminated = True
 
         if self.obstacle:
@@ -127,7 +126,6 @@ class UAVEnv(gym.Env):
                 d = np.linalg.norm(obs_i["pos"] - np.array([x, y]))
                 if d < self.config["obstacle_radius"]:
                     terminated = True
-
 
         if terminated and not success:
             reward -= 50
@@ -165,7 +163,7 @@ class UAVEnv(gym.Env):
                 )
                 # Too close to UAV → reset
                 if np.linalg.norm(pos - start_pos) < safe_dist_start:
-                   continue
+                    continue
 
                     # Too close to goal → reset
                 if np.linalg.norm(pos - goal_pos) < safe_dist_goal:
@@ -223,7 +221,10 @@ class UAVEnv(gym.Env):
 
         d_list = []
         if self.obstacle:
-            d_list = [np.linalg.norm(obs_i["pos"] - np.array([x, y])) for obs_i in self.obstacles]
+            d_list = [
+                np.linalg.norm(obs_i["pos"] - np.array([x, y]))
+                for obs_i in self.obstacles
+            ]
             sorted_idx = np.argsort(d_list)
         else:
             sorted_idx = []
@@ -247,23 +248,9 @@ class UAVEnv(gym.Env):
 
         reward = -0.1
 
-        reward += (self.prev_dist - dist)
-
-        # reward of progress
         if hasattr(self, "prev_dist"):
-
-            goal_vec = np.array([self.goal[0] - x, self.goal[1] - y])
-            goal_dir = goal_vec / (np.linalg.norm(goal_vec) + 1e-6)
-
-            vel = np.array([vx, vy])
-            vel_norm = np.linalg.norm(vel)
-            if vel_norm < 1e-6:
-                vel_dir = np.array([0.0, 0.0])
-            else:
-                vel_dir = vel / vel_norm
-
-            cos_theta = np.dot(goal_dir, vel_dir)
-            reward += 0.1 * cos_theta
+            progress = self.prev_dist - dist
+            reward += 10.0 * progress
 
         self.prev_dist = dist
 
@@ -276,9 +263,6 @@ class UAVEnv(gym.Env):
                     reward -= 20  # 撞上
                 elif d < safe_r + 0.8:
                     reward -= 1.0 * (safe_r + 0.8 - d)
-
-        if dist < 1.0:
-            reward += 1.0 * (1.0 - dist)
 
         if dist < 0.3:
             reward += 50
