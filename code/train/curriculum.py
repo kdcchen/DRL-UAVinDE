@@ -15,7 +15,7 @@ def make_env(config):
     return lambda: UAVEnv(config)
 
 
-def create_vec_env(config, num_envs=16):
+def create_vec_env(config, num_envs=4):
     env = SubprocVecEnv([make_env(config) for _ in range(num_envs)])
     env = VecMonitor(env)
     return env
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         stage_config = ENV_CONFIG.copy()
         stage_config.update(stage["config"])
 
-        env = create_vec_env(stage_config, num_envs=16)
+        env = create_vec_env(stage_config, num_envs=12)
 
         if model is None:
             model = PPO(

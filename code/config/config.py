@@ -12,6 +12,7 @@ ENV_CONFIG = {
     "obstacle_radius": 0.3,
     "safety_radius": 1.0,
     "wind_std": 0.1,
+    "wind_alpha": 0.9,
     "obstacle_layout": "random",
 }
 
@@ -37,7 +38,18 @@ PATHS = {
 STAGE_CONFIGS = {
     1: {
         "name": "stage1_empty",
-        "steps": 150_000,
+        "steps": 200_000,
+        "config": {
+            "wind": False,
+            "obstacle": False,
+            "dynamicObstacle_rate": 0.0,
+            "num_obstacles": [0, 0],
+            "speed_reward_weight": 0.0,
+        },
+    },
+    2: {
+        "name": "stage2_empty_speed",
+        "steps": 200_000,
         "config": {
             "wind": False,
             "obstacle": False,
@@ -45,8 +57,8 @@ STAGE_CONFIGS = {
             "num_obstacles": [0, 0],
         },
     },
-    2: {
-        "name": "stage2_far_obs",
+    3: {
+        "name": "stage3_far_obs",
         "steps": 150_000,
         "config": {
             "wind": False,
@@ -56,8 +68,8 @@ STAGE_CONFIGS = {
             "num_obstacles": [1, 1],
         },
     },
-    3: {
-        "name": "stage3_near_obs",
+    4: {
+        "name": "stage4_near_obs",
         "steps": 250_000,
         "config": {
             "wind": False,
@@ -67,8 +79,8 @@ STAGE_CONFIGS = {
             "num_obstacles": [1, 1],
         },
     },
-    4: {
-        "name": "stage4_blocking_obs",
+    5: {
+        "name": "stage5_blocking_obs",
         "steps": 300_000,
         "config": {
             "wind": False,
@@ -78,8 +90,8 @@ STAGE_CONFIGS = {
             "num_obstacles": [1, 1],
         },
     },
-    5: {
-        "name": "stage5_dynamic",
+    6: {
+        "name": "stage6_dynamic",
         "steps": 500_000,
         "config": {
             "wind": False,
@@ -89,8 +101,8 @@ STAGE_CONFIGS = {
             "num_obstacles": [4, 6],
         },
     },
-    6: {
-        "name": "stage6_windy",
+    7: {
+        "name": "stage7_windy",
         "steps": 500_000,
         "config": {
             "wind": True,

@@ -23,8 +23,6 @@ class UAVEnv(gym.Env):
             low=-self.max_accel, high=self.max_accel, shape=(2,), dtype=np.float32
         )
 
-        # [x,y,vx,vy,gx,gy]
-
         high = np.array(
             [
                 self.map_size,
@@ -36,7 +34,7 @@ class UAVEnv(gym.Env):
             ],
             dtype=np.float32,
         )
-        obs_dim = 7 + 2 * self.K
+        obs_dim = 7 + 5 * self.K  # [x, y, d, vx, vy]
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(obs_dim,), dtype=np.float32
         )
@@ -48,6 +46,8 @@ class UAVEnv(gym.Env):
         self.obstacles = []
         self.prev_dist = None
         self.render_mode = None
+        self.alpha = self.config.get("wind_alpha", 0.9)
+        self.current_wind = np.zeros(2)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -82,6 +82,8 @@ class UAVEnv(gym.Env):
             self._reset_obstacles()
 
         self.prev_dist = np.linalg.norm(self.goal - np.array([x, y]))
+        self.current_wind = np.zeros(2)
+
         return self._get_obs(), {}
 
     def step(self, action):
@@ -116,7 +118,6 @@ class UAVEnv(gym.Env):
         if dist_to_goal < 0.3:
             terminated = True
             success = True
-            reward -= 0.1 * self.step_count
 
         if abs(x) > self.map_size - 0.1 or abs(y) > self.map_size - 0.1:
             terminated = True
@@ -136,7 +137,10 @@ class UAVEnv(gym.Env):
         return self._get_obs(), reward, terminated, truncated, info
 
     def _compute_wind(self):
-        return self.config["wind_std"] * self.np_random.normal(0, 1, size=2)
+        noise = self.config["wind_std"] * self.np_random.normal(0, 1, size=2)
+        self.current_wind = self.alpha * self.current_wind + (1 - self.alpha) * noise
+
+        return self.current_wind
 
     def _reset_obstacles(self):
         self.obstacles = []
@@ -276,11 +280,21 @@ class UAVEnv(gym.Env):
             if self.obstacle and i < len(sorted_idx):
                 obs_i = self.obstacles[sorted_idx[i]]
                 ox, oy = obs_i["pos"]
-                obs.append((ox - x) / self.map_size)
-                obs.append((oy - y) / self.map_size)
+                ovx, ovy = obs_i["vel"]
+                rel_x = ox - x
+                rel_y = oy - y
             else:
-                obs.append(2.0)
-                obs.append(2.0)
+                rel_x = 2.0 * self.map_size
+                rel_y = 2.0 * self.map_size
+                ovx, ovy = 0.0, 0.0
+
+            d = np.linalg.norm([rel_x, rel_y])
+
+            obs.append(rel_x / self.map_size)
+            obs.append(rel_y / self.map_size)
+            obs.append(d / self.map_size)
+            obs.append(ovx / self.max_speed)
+            obs.append(ovy / self.max_speed)
 
         return np.array(obs, dtype=np.float32)
 
@@ -302,13 +316,21 @@ class UAVEnv(gym.Env):
                 d = np.linalg.norm(obs["pos"] - pos)
                 safe_r = self.config["obstacle_radius"] + 0.2
 
+                buffer_zone = 2.0
+
                 if d < safe_r:
-                    reward -= 20  # 撞上
-                elif d < safe_r + 0.8:
-                    reward -= 1.0 * (safe_r + 0.8 - d)
+                    reward -= 20
+                elif d < safe_r + buffer_zone:
+                    dist_from_safe = d - safe_r
+                    penalty = 0.625 * (2.0 - dist_from_safe) ** 4
+                    reward -= penalty
 
         if dist < 0.3:
             reward += 50
+
+            speed_weight = self.config.get("speed_reward_weight", 5.0)
+            speed = np.linalg.norm([vx, vy])
+            reward += speed_weight * speed
 
         return reward
 
