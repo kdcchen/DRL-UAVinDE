@@ -54,7 +54,7 @@ if __name__ == "__main__":
         stage_config = ENV_CONFIG.copy()
         stage_config.update(stage["config"])
 
-        env = create_vec_env(stage_config, num_envs=8)
+        env = create_vec_env(stage_config, num_envs=16)
 
         if model is None:
             if args.load_model and os.path.exists(args.load_model):
@@ -93,5 +93,5 @@ if __name__ == "__main__":
         model.save(save_path)
         print(f"✅ 阶段 {stage_idx} 训练完成。模型已保存至: {save_path}.zip")
 
-    env.close()
+        env.close()
     print("\n🎉 所有指定阶段的课程学习已全部完成！")
