@@ -12,47 +12,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from config.config import ENV_CONFIG
+from config.config import ENV_CONFIG, STAGE_CONFIGS
 from uav_env.uav_env import UAVEnv
-
-STAGE_CONFIGS = {
-    1: {
-        "name": "stage1_easy",
-        "config": {
-            "wind": False,
-            "obstacle": False,
-            "dynamicObstacle_rate": 0.0,
-            "num_obstacles": [0, 0],
-        },
-    },
-    2: {
-        "name": "stage2_medium",
-        "config": {
-            "wind": False,
-            "obstacle": True,
-            "dynamicObstacle_rate": 0.0,
-            "num_obstacles": [2, 4],
-        },
-    },
-    3: {
-        "name": "stage3_hard",
-        "config": {
-            "wind": False,
-            "obstacle": True,
-            "dynamicObstacle_rate": 0.3,
-            "num_obstacles": [4, 6],
-        },
-    },
-    4: {
-        "name": "stage4_final",
-        "config": {
-            "wind": True,
-            "obstacle": True,
-            "dynamicObstacle_rate": 0.3,
-            "num_obstacles": [6, 8],
-        },
-    },
-}
 
 
 def animate_epi(model_path, env_config, max_epi=300):
@@ -171,27 +132,51 @@ if __name__ == "__main__":
     parser.add_argument(
         "--stage",
         type=int,
-        choices=[1, 2, 3, 4],
-        default=4,
-        help="Choose the curriculum stage to test (1: Easy, 2: Medium, 3: Hard, 4: Final)",
+        default=6,
+        help="Choose the curriculum stage number to test (e.g., 1, 2, 3...)",
     )
     args = parser.parse_args()
 
-    selected_stage = STAGE_CONFIGS[args.stage]
+    stage_num = args.stage
+
+    # 1. 验证配置文件中是否存在该阶段
+    if stage_num not in STAGE_CONFIGS:
+        print(f"错误: 找不到阶段 {stage_num} 的环境配置。检查 config.py")
+        sys.exit(1)
+
+    selected_stage = STAGE_CONFIGS[stage_num]
     test_config = ENV_CONFIG.copy()
     test_config.update(selected_stage["config"])
 
-    model_file = f"./models/{selected_stage['name']}.zip"
+    # 2. 动态扫描 ./models 文件夹，寻找以 stage{N}_ 开头的 zip 文件
+    model_dir = "./models"
+    prefix = f"stage{stage_num}_"
 
-    print(f"=========================================")
-    print(f"Testing Stage: {args.stage} - {selected_stage['name']}")
-    print(f"Model Path: {model_file}")
-    print(f"Wind: {test_config['wind']}, Obstacles: {test_config['obstacle']}")
-    print(f"Dynamic Rate: {test_config['dynamicObstacle_rate']}")
-    print(f"=========================================")
-
-    if not os.path.exists(model_file):
-        print(f" 错误: 找不到模型文件 {model_file}。请确认训练是否成功保存。")
+    if not os.path.exists(model_dir):
+        print(f"错误: 模型文件夹 {model_dir} 不存在。")
         sys.exit(1)
+
+    # 过滤寻找符合前缀且是 .zip 的文件
+    matching_files = [
+        f for f in os.listdir(model_dir) if f.startswith(prefix) and f.endswith(".zip")
+    ]
+
+    if not matching_files:
+        print(f"错误: 在 {model_dir} 中找不到以 '{prefix}' 开头的模型文件。")
+        sys.exit(1)
+
+    # 如果有多个匹配（比如人为备份），默认取第一个找到的
+    model_file = os.path.join(model_dir, matching_files[0])
+
+    print(f"=========================================")
+    print(f"Testing Stage: {stage_num}")
+    print(f"Loaded Config: {selected_stage['name']}")
+    print(f"Found Model: {model_file}")
+    print(
+        f"Wind: {test_config.get('wind', False)}, Obstacles: {test_config.get('obstacle', False)}"
+    )
+    print(f"Dynamic Rate: {test_config.get('dynamicObstacle_rate', 0.0)}")
+    print(f"Layout: {test_config.get('obstacle_layout', 'random')}")
+    print(f"=========================================")
 
     animate_epi(model_file, test_config)

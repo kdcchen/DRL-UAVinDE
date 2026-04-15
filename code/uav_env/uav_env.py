@@ -140,13 +140,61 @@ class UAVEnv(gym.Env):
 
     def _reset_obstacles(self):
         self.obstacles = []
-        low, high = self.config["num_obstacles"]
-        num_obs = self.np_random.integers(low, high + 1)
+        layout = self.config.get("obstacle_layout", "random")
 
-        speed_low, speed_high = self.config["obstacle_speed_range"]
+        if layout == "random":
+            self._generate_random_obstacles()
+        else:
+            self._generate_algorithmic_obstacle(layout)
+
+    def _generate_algorithmic_obstacle(self, layout):
+        """
+        根据起点和终点的向量关系，算法化地生成单个特定障碍物
+        """
+        start_pos = np.array([self.state[0], self.state[1]])
+        goal_pos = self.goal
+
+        vec = goal_pos - start_pos
+        length = np.linalg.norm(vec)
+        u = vec / length
+        n = np.array([-u[1], u[0]])
+
         radius = self.config["obstacle_radius"]
 
-        # Safety Radius
+        if layout == "far_single":
+            offset_dist = radius + 1.5
+        elif layout == "near_single":
+            offset_dist = radius + 0.5
+        elif layout == "blocking_single":
+            offset_dist = 0.0
+        else:
+            offset_dist = 0.0
+
+        for _ in range(10):
+            proj = self.np_random.uniform(0.4, 0.6) * length
+            base_point = start_pos + u * proj
+
+            sign = self.np_random.choice([-1, 1])
+            pos = base_point + sign * offset_dist * n
+
+            if (abs(pos[0]) <= self.map_size - 1.0) and (
+                abs(pos[1]) <= self.map_size - 1.0
+            ):
+                self.obstacles.append(
+                    {"type": "static", "pos": pos, "vel": np.zeros(2)}
+                )
+                return
+
+        fallback_pos = np.array([self.map_size - 1.0, self.map_size - 1.0])
+        self.obstacles.append(
+            {"type": "static", "pos": fallback_pos, "vel": np.zeros(2)}
+        )
+
+    def _generate_random_obstacles(self):
+        low, high = self.config["num_obstacles"]
+        num_obs = self.np_random.integers(low, high + 1)
+        speed_low, speed_high = self.config["obstacle_speed_range"]
+        radius = self.config["obstacle_radius"]
 
         safe_dist_start = self.safety_radius
         safe_dist_goal = self.safety_radius
@@ -156,23 +204,19 @@ class UAVEnv(gym.Env):
         goal_pos = self.goal
 
         for _ in range(num_obs):
-            while True:
-                # random position
+            for _ in range(50):
                 pos = self.np_random.uniform(
                     -self.map_size + 1.0, self.map_size - 1.0, size=2
                 )
-                # Too close to UAV → reset
                 if np.linalg.norm(pos - start_pos) < safe_dist_start:
                     continue
-
-                    # Too close to goal → reset
                 if np.linalg.norm(pos - goal_pos) < safe_dist_goal:
                     continue
-                too_close = False
-                for obs in self.obstacles:
-                    if np.linalg.norm(pos - obs["pos"]) < min_dist_between_obs:
-                        too_close = True
-                        break
+
+                too_close = any(
+                    np.linalg.norm(pos - obs["pos"]) < min_dist_between_obs
+                    for obs in self.obstacles
+                )
                 if too_close:
                     continue
                 break
@@ -181,7 +225,6 @@ class UAVEnv(gym.Env):
                 vel = np.zeros(2)
                 obs_type = "static"
             else:
-                # random direction + random speed
                 angle = self.np_random.uniform(0, 2 * np.pi)
                 speed = self.np_random.uniform(speed_low, speed_high)
                 vel = np.array([np.cos(angle) * speed, np.sin(angle) * speed])
