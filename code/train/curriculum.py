@@ -1,13 +1,13 @@
 import os
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from config.config import ENV_CONFIG, PPO_CONFIG
 from callbacks import TrainingStatsCallback
-
+from config.config import ENV_CONFIG, PPO_CONFIG
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.logger import configure
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from uav_env.uav_env import UAVEnv
 
 CURRICULUM = [
@@ -53,10 +53,13 @@ CURRICULUM = [
     },
 ]
 
+
 def make_env(config):
     return lambda: UAVEnv(config)
 
+
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+
 
 def create_vec_env(config, num_envs=8):
     env = SubprocVecEnv([make_env(config) for _ in range(num_envs)])
@@ -74,7 +77,7 @@ if __name__ == "__main__":
         stage_config = ENV_CONFIG.copy()
         stage_config.update(stage["config"])
 
-        env = create_vec_env(stage_config, num_envs=8)
+        env = create_vec_env(stage_config, num_envs=16)
 
         if model is None:
             model = PPO(
@@ -101,10 +104,7 @@ if __name__ == "__main__":
         # Stats callback
         stats_callback = TrainingStatsCallback()
 
-        model.learn(
-            total_timesteps=stage["steps"],
-            callback=stats_callback
-        )
+        model.learn(total_timesteps=stage["steps"], callback=stats_callback)
 
         model.save(f"./models/{stage['name']}")
 
