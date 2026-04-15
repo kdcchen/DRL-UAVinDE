@@ -210,7 +210,7 @@ class UAVEnv(gym.Env):
         for _ in range(num_obs):
             for _ in range(50):
                 pos = self.np_random.uniform(
-                    -self.map_size + 1.0, self.map_size - 1.0, size=2
+                    -self.map_size + 2.0, self.map_size - 2.0, size=2
                 )
                 if np.linalg.norm(pos - start_pos) < safe_dist_start:
                     continue
@@ -281,12 +281,12 @@ class UAVEnv(gym.Env):
                 obs_i = self.obstacles[sorted_idx[i]]
                 ox, oy = obs_i["pos"]
                 ovx, ovy = obs_i["vel"]
-                rel_x = ox - x
-                rel_y = oy - y
             else:
-                rel_x = 2.0 * self.map_size
-                rel_y = 2.0 * self.map_size
+                ox, oy = 2.0 * self.map_size, 2.0 * self.map_size
                 ovx, ovy = 0.0, 0.0
+
+            rel_x = ox - x
+            rel_y = oy - y
 
             d = np.linalg.norm([rel_x, rel_y])
 
@@ -319,7 +319,7 @@ class UAVEnv(gym.Env):
                 buffer_zone = 2.0
 
                 if d < safe_r:
-                    reward -= 20
+                    reward -= 50
                 elif d < safe_r + buffer_zone:
                     dist_from_safe = d - safe_r
                     penalty = 0.625 * (2.0 - dist_from_safe) ** 4
