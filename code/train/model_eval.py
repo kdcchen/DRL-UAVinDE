@@ -22,7 +22,7 @@ def evaluate(model_path, env_config, episodes=100):
     episode_rewards = []
     episode_lengths = []
     final_distances = []
-    final_speeds = []   # ⭐ 新增：终点速度
+    final_speeds = []
 
     for ep in range(episodes):
         obs = env.reset()
@@ -42,15 +42,12 @@ def evaluate(model_path, env_config, episodes=100):
 
         info = info[0]
 
-        # ⭐ 记录终点速度
         final_speed = np.linalg.norm(env.envs[0].state[2:4])
         final_speeds.append(final_speed)
 
-        # 成功
         if info.get("success", False):
             success_count += 1
         else:
-            # 判断是否碰撞
             x, y = env.envs[0].state[:2]
             collided = False
             for obs_i in env.envs[0].obstacles:
@@ -95,7 +92,6 @@ if __name__ == "__main__":
         print(f"错误: 模型文件 {args.model} 不存在。")
         sys.exit(1)
 
-    # 默认使用 Stage 7
     if args.stage not in STAGE_CONFIGS:
         print(f"警告: Stage {args.stage} 不存在，自动使用 Stage 7 配置。")
         args.stage = 7
